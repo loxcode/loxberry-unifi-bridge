@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- loxcode bridge v1.0 - generiert von tools/make_templates.py -->
+<VirtualOut Title="loxcode bridge PoE" Comment="PoE dauerhaft an/aus via loxcode bridge - siehe README" Address="http://192.168.1.50:5000" CmdInit="" CloseAfterSend="true" CmdSep="">
+	<VirtualOutCmd Title="Switch1 Port 1 PoE" Comment="" CmdOnMethod="GET" CmdOn="/poe/set?switch=Switch1&amp;ports=1&amp;state=on" CmdOnHTTP="" CmdOnPost="" CmdOffMethod="GET" CmdOff="/poe/set?switch=Switch1&amp;ports=1&amp;state=off" CmdOffHTTP="" CmdOffPost="" Analog="false" Repeat="0" RepeatRate="0"/>
+	<VirtualOutCmd Title="Switch1 Port 2 PoE" Comment="" CmdOnMethod="GET" CmdOn="/poe/set?switch=Switch1&amp;ports=2&amp;state=on" CmdOnHTTP="" CmdOnPost="" CmdOffMethod="GET" CmdOff="/poe/set?switch=Switch1&amp;ports=2&amp;state=off" CmdOffHTTP="" CmdOffPost="" Analog="false" Repeat="0" RepeatRate="0"/>
+	<VirtualOutCmd Title="Switch1 Port 3 PoE" Comment="" CmdOnMethod="GET" CmdOn="/poe/set?switch=Switch1&amp;ports=3&amp;state=on" CmdOnHTTP="" CmdOnPost="" CmdOffMethod="GET" CmdOff="/poe/set?switch=Switch1&amp;ports=3&amp;state=off" CmdOffHTTP="" CmdOffPost="" Analog="false" Repeat="0" RepeatRate="0"/>
+	<VirtualOutCmd Title="Switch1 Port 4 PoE" Comment="" CmdOnMethod="GET" CmdOn="/poe/set?switch=Switch1&amp;ports=4&amp;state=on" CmdOnHTTP="" CmdOnPost="" CmdOffMethod="GET" CmdOff="/poe/set?switch=Switch1&amp;ports=4&amp;state=off" CmdOffHTTP="" CmdOffPost="" Analog="false" Repeat="0" RepeatRate="0"/>
+	<VirtualOutCmd Title="Switch1 alle Ports PoE" Comment="" CmdOnMethod="GET" CmdOn="/poe/set?switch=Switch1&amp;ports=1,2,3,4&amp;state=on" CmdOnHTTP="" CmdOnPost="" CmdOffMethod="GET" CmdOff="/poe/set?switch=Switch1&amp;ports=1,2,3,4&amp;state=off" CmdOffHTTP="" CmdOffPost="" Analog="false" Repeat="0" RepeatRate="0"/>
+</VirtualOut>

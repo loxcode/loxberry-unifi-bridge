@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- loxcode bridge v1.0 - generiert von tools/make_templates.py -->
+<VirtualInHttp Title="loxcode bridge Switch1 Online" Comment="" Address="http://192.168.1.50:5000/device/status.txt?switch=Switch1" PollingTime="60">
+	<VirtualInHttpCmd Title="Switch1 Online" Comment="" Check="online=\v" Analog="true" Signed="true" SourceValLow="0" DestValLow="0" SourceValHigh="0" DestValHigh="0" DefVal="0" MinVal="-2147483647" MaxVal="2147483647"/>
+</VirtualInHttp>

@@ -1,0 +1,20 @@
+# Kopieren nach docker-compose.yml und Werte anpassen.
+services:
+  loxcode-bridge:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: loxcode-bridge
+    restart: unless-stopped
+    ports:
+      - "5000:5000"           # links: Port im LAN
+    environment:
+      UNIFI_HOST: "https://192.168.1.1"     # UDM/Controller-URL
+      UNIFI_SITE: "default"
+      UNIFI_USER: "bridge-benutzer"          # eigener lokaler UniFi-User
+      UNIFI_PASS: "AENDERE-MICH"
+      DEFAULT_TIMEOUT: "5.0"
+      API_USER: "loxone"                     # Basic Auth der Bridge-API
+      API_PASS: "AENDERE-MICH"
+      SWITCHES_JSON: '{"Switch1":"aa:bb:cc:dd:ee:ff"}'
+      BRIDGE_PORT: "5000"

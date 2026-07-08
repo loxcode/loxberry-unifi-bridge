@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- loxcode bridge v1.0 - generiert von tools/make_templates.py -->
+<VirtualInHttp Title="loxcode bridge Switch1 PoE-Leistung" Comment="" Address="http://192.168.1.50:5000/poe/power.txt?switch=Switch1&amp;ports=1,2,3,4" PollingTime="60">
+	<VirtualInHttpCmd Title="Switch1 Port 1 Watt" Comment="" Check="port1=\v" Analog="true" Signed="true" SourceValLow="0" DestValLow="0" SourceValHigh="0" DestValHigh="0" DefVal="0" MinVal="-2147483647" MaxVal="2147483647"/>
+	<VirtualInHttpCmd Title="Switch1 Port 2 Watt" Comment="" Check="port2=\v" Analog="true" Signed="true" SourceValLow="0" DestValLow="0" SourceValHigh="0" DestValHigh="0" DefVal="0" MinVal="-2147483647" MaxVal="2147483647"/>
+	<VirtualInHttpCmd Title="Switch1 Port 3 Watt" Comment="" Check="port3=\v" Analog="true" Signed="true" SourceValLow="0" DestValLow="0" SourceValHigh="0" DestValHigh="0" DefVal="0" MinVal="-2147483647" MaxVal="2147483647"/>
+	<VirtualInHttpCmd Title="Switch1 Port 4 Watt" Comment="" Check="port4=\v" Analog="true" Signed="true" SourceValLow="0" DestValLow="0" SourceValHigh="0" DestValHigh="0" DefVal="0" MinVal="-2147483647" MaxVal="2147483647"/>
+</VirtualInHttp>

@@ -1,0 +1,11 @@
+{
+  "UNIFI_HOST": "https://192.168.1.1",
+  "UNIFI_SITE": "default",
+  "UNIFI_USER": "",
+  "UNIFI_PASS": "",
+  "DEFAULT_TIMEOUT": "5.0",
+  "API_USER": "",
+  "API_PASS": "",
+  "SWITCHES_JSON": "{}",
+  "BRIDGE_PORT": "5000"
+}

@@ -1,0 +1,9 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+dist/*.zip
+dist/.DS_Store
+docker/docker-compose.yml
+*.log

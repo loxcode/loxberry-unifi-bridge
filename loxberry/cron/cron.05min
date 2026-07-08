@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Watchdog: prueft alle 5 Minuten, ob die Bridge antwortet, und startet sie
+# bei Bedarf neu. LoxBerry fuehrt Skripte in cron/cron.05min alle 5 Min aus.
+LBHOME="${LBHOMEDIR:-/opt/loxberry}"
+BIN=$(ls -d "$LBHOME"/bin/plugins/loxcode_bridge* 2>/dev/null | head -1)
+[ -n "$BIN" ] || exit 0
+FOLDER=$(basename "$BIN")
+CONFIG="$LBHOME/config/plugins/$FOLDER/config.json"
+LOG="$LBHOME/log/plugins/$FOLDER/bridge.log"
+[ -f "$CONFIG" ] || exit 0
+
+# Port aus der Config lesen (Default 5000)
+PORT=$(grep -o '"BRIDGE_PORT"[^,}]*' "$CONFIG" | grep -o '[0-9]\+' | head -1)
+[ -n "$PORT" ] || PORT=5000
+
+# /health pruefen - antwortet die Bridge?
+if curl -fsS --max-time 5 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
+    exit 0
+fi
+
+echo "$(date '+%F %T') Watchdog: Bridge antwortet nicht - Neustart" >> "$LOG"
+bash "$BIN/restart.sh" >> "$LOG" 2>&1
+exit 0

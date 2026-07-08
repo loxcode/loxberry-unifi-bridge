@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#69c350"/>
+  <!-- Rack-Switch-Gehaeuse -->
+  <rect x="76" y="180" width="360" height="152" rx="20" fill="#ffffff"/>
+  <!-- Statuspunkt -->
+  <circle cx="116" cy="214" r="11" fill="#69c350"/>
+  <circle cx="146" cy="214" r="11" fill="#cfe9c2"/>
+  <!-- Port-Reihe (ein Port orange = aktive PoE-Steuerung) -->
+  <g>
+    <rect x="104" y="252" width="44" height="56" rx="6" fill="#69c350"/>
+    <rect x="158" y="252" width="44" height="56" rx="6" fill="#69c350"/>
+    <rect x="212" y="252" width="44" height="56" rx="6" fill="#f2a900"/>
+    <rect x="266" y="252" width="44" height="56" rx="6" fill="#69c350"/>
+    <rect x="320" y="252" width="44" height="56" rx="6" fill="#69c350"/>
+    <rect x="374" y="252" width="44" height="56" rx="6" fill="#69c350"/>
+  </g>
+</svg>
