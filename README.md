@@ -1,4 +1,4 @@
-# loxcode bridge — UniFi-PoE-Gateway für Loxone
+# UniFi Bridge — UniFi-PoE-Gateway für Loxone
 
 Schaltet PoE-Ports **dauerhaft** an/aus und liefert **Status-Feedback**
 (PoE-Zustand, Watt je Port, Gerät online) an Loxone — die beiden Dinge,
