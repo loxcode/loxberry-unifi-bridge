@@ -5,7 +5,7 @@ Schaltet PoE-Ports **dauerhaft** an/aus und liefert **Status-Feedback**
 die ohne Gateway technisch nicht gehen (Session-API + Header-Pflicht,
 siehe `../unifi/RECHERCHE.md`).
 
-**Version 1.0 · Docker + LoxBerry · loxcode**
+**Version 1.0.19 · Docker + LoxBerry · LOXCODE**
 
 ## Varianten
 
@@ -60,11 +60,11 @@ Network-App). Keinen Cloud-Account verwenden.
 | `GET /device/status.txt?switch=Rack` | `online=1` |
 | `GET /devices` | Liste aller PoE-Switches im Controller (Name, MAC, Ports, Watt) |
 | `GET /templates.zip?host=<ip>` | Loxone-Vorlagen als ZIP (Ports per Discovery) |
-| `GET /selftest` | Kettentest Bridge→UDM (ohne Auth, ohne Secrets) |
+| `GET /selftest` | Authentifizierter Kettentest Bridge→UDM ohne Secrets |
 | `GET /health` | `{"status":"ok"}` (ohne Auth) |
 
-Alle Endpoints (außer `/health`) mit Basic Auth, wenn `API_USER`/`API_PASS`
-gesetzt sind — dringend empfohlen.
+Alle Endpoints außer `/health` benötigen Basic Auth. Solange API-Benutzer oder
+API-Passwort fehlen, bleiben sie gesperrt.
 
 ## Loxone anbinden
 
@@ -91,7 +91,11 @@ die komplette Kette lokal durchspielen.
 ## Sicherheit
 
 - Bridge gehört ins LAN, niemals ins Internet exponieren.
-- `API_USER`/`API_PASS` setzen; UniFi-User mit minimalen Rechten.
+- `API_USER`/`API_PASS` sind Pflicht; UniFi-User mit minimalen Rechten.
+- Controller-Zertifikate werden bei Neuinstallationen geprüft. Für
+  selbstsignierte Zertifikate kann eine eigene CA-Datei angegeben werden.
+  `UNIFI_TLS_VERIFY=false` ist nur als ausdrücklich unsichere Übergangslösung
+  für rein lokale Netze vorgesehen.
 - Keine echten Zugangsdaten in Git — `docker-compose.yml` (ohne
   `.example`) und lokale Configs sind bewusst nicht Teil des Repos.
 

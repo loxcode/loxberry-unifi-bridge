@@ -2,7 +2,14 @@
 # Watchdog: prueft alle 5 Minuten, ob die Bridge antwortet, und startet sie
 # bei Bedarf neu. LoxBerry fuehrt Skripte in cron/cron.05min alle 5 Min aus.
 LBHOME="${LBHOMEDIR:-/opt/loxberry}"
-BIN=$(ls -d "$LBHOME"/bin/plugins/loxcode_bridge* 2>/dev/null | head -1)
+BIN=""
+for candidate in "$LBHOME/bin/plugins/loxcode_bridge" "$LBHOME"/bin/plugins/loxcode_bridge_*; do
+  [ -d "$candidate" ] || continue
+  folder=$(basename "$candidate")
+  [ -f "$LBHOME/config/plugins/$folder/config.json" ] || continue
+  BIN="$candidate"
+  break
+done
 [ -n "$BIN" ] || exit 0
 FOLDER=$(basename "$BIN")
 CONFIG="$LBHOME/config/plugins/$FOLDER/config.json"
@@ -10,11 +17,19 @@ LOG="$LBHOME/log/plugins/$FOLDER/bridge.log"
 [ -f "$CONFIG" ] || exit 0
 
 # Port aus der Config lesen (Default 5000)
-PORT=$(grep -o '"BRIDGE_PORT"[^,}]*' "$CONFIG" | grep -o '[0-9]\+' | head -1)
+PORT=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("BRIDGE_PORT", 5000))' "$CONFIG" 2>/dev/null)
 [ -n "$PORT" ] || PORT=5000
 
-# /health pruefen - antwortet die Bridge?
-if curl -fsS --max-time 5 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
+# /health pruefen - antwortet wirklich die UniFi Bridge?
+if python3 - "$PORT" <<'PY' >/dev/null 2>&1
+import json, sys, urllib.request
+with urllib.request.urlopen(
+        f"http://127.0.0.1:{int(sys.argv[1])}/health", timeout=5) as response:
+    data = json.loads(response.read().decode("utf-8"))
+raise SystemExit(0 if data.get("service") == "unifi_bridge"
+                 and data.get("status") == "ok" else 1)
+PY
+then
     exit 0
 fi
 

@@ -5,7 +5,6 @@ Start als Server: python3 tools/controller_mock.py [port]
 """
 import json
 import re
-import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -152,6 +151,11 @@ class ControllerMock:
     def stop(self):
         if self._server:
             self._server.shutdown()
+            self._server.server_close()
+            if self._thread:
+                self._thread.join(timeout=2)
+            self._server = None
+            self._thread = None
 
 
 if __name__ == "__main__":

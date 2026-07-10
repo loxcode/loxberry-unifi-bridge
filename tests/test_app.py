@@ -1,11 +1,16 @@
-import base64, io, sys, pathlib, unittest, zipfile
+import base64
+import io
+import pathlib
+import sys
+import unittest
+import zipfile
 
 BASE_DIR = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE_DIR / "tools"))
 sys.path.insert(0, str(BASE_DIR / "bridge"))
-from controller_mock import ControllerMock
-from unifi_client import UnifiClient
-from app import create_app
+from controller_mock import ControllerMock  # noqa: E402
+from unifi_client import UnifiClient  # noqa: E402
+from app import create_app  # noqa: E402
 
 MAC = "aa:bb:cc:dd:ee:ff"
 AUTH = {"Authorization":
@@ -17,12 +22,15 @@ class AppTestBase(unittest.TestCase):
         self.mock = ControllerMock()
         port = self.mock.start()
         client = UnifiClient(f"http://127.0.0.1:{port}",
-                             username="bridge", password="pw")
+                             username="bridge", password="pw",
+                             device_cache_ttl=0)
+        self.client = client
         app = create_app(client, {"Switch24": MAC},
                          api_user="loxone", api_pass="geheim")
         self.http = app.test_client()
 
     def tearDown(self):
+        self.client.close()
         self.mock.stop()
 
 
@@ -36,8 +44,9 @@ class TestAuthAndHealth(AppTestBase):
         r = self.http.get("/poe/status?switch=Switch24&ports=1")
         self.assertEqual(r.status_code, 401)
 
-    def test_selftest_without_auth_reports_chain(self):
-        r = self.http.get("/selftest")
+    def test_selftest_requires_auth_and_reports_chain(self):
+        self.assertEqual(self.http.get("/selftest").status_code, 401)
+        r = self.http.get("/selftest", headers=AUTH)
         self.assertEqual(r.status_code, 200)
         data = r.get_json()
         self.assertTrue(data["unifi_reachable"])
@@ -49,8 +58,17 @@ class TestAuthAndHealth(AppTestBase):
 
     def test_selftest_flags_missing_switch(self):
         self.mock.state.devices[0]["mac"] = "99:99:99:99:99:99"
-        data = self.http.get("/selftest").get_json()
+        data = self.http.get("/selftest", headers=AUTH).get_json()
         self.assertEqual(data["switches_missing"], ["Switch24"])
+
+    def test_missing_api_credentials_lock_non_health_endpoints(self):
+        app = create_app(self.client, {"Switch24": MAC})
+        http = app.test_client()
+        self.assertEqual(http.get("/health").status_code, 200)
+        self.assertEqual(
+            http.get("/poe/set?switch=Switch24&ports=1&state=off").status_code,
+            503,
+        )
 
 
 class TestDiscoverEndpoint(AppTestBase):
@@ -112,6 +130,12 @@ class TestPoeSet(AppTestBase):
         r = self.http.get(
             "/poe/set?switch=Switch24&ports=1&state=vielleicht", headers=AUTH)
         self.assertEqual(r.status_code, 400)
+
+    def test_non_poe_port_is_rejected(self):
+        r = self.http.get(
+            "/poe/set?switch=Switch24&ports=99&state=off", headers=AUTH)
+        self.assertEqual(r.status_code, 500)
+        self.assertIn("Keine PoE-Ports", r.get_json()["message"])
 
 
 class TestStatusFormats(AppTestBase):

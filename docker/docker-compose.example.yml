@@ -14,6 +14,9 @@ services:
       UNIFI_USER: "bridge-benutzer"          # eigener lokaler UniFi-User
       UNIFI_PASS: "AENDERE-MICH"
       DEFAULT_TIMEOUT: "5.0"
+      UNIFI_TLS_VERIFY: "true"              # bei eigener CA: Datei ins Image mounten
+      UNIFI_CA_BUNDLE: ""                    # z. B. /run/secrets/unifi-ca.pem
+      DEVICE_CACHE_TTL: "2.0"
       API_USER: "loxone"                     # Basic Auth der Bridge-API
       API_PASS: "AENDERE-MICH"
       SWITCHES_JSON: '{"Switch1":"aa:bb:cc:dd:ee:ff"}'

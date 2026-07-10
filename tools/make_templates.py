@@ -15,7 +15,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "bridge"))
-from loxone_templates import (  # noqa: E402
+from loxone_templates import (  # noqa: E402, F401
     base_address, build_vo_commands, build_vi_devices,
     render_vo_xml, render_vi_xml, render_files)
 

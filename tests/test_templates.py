@@ -1,4 +1,6 @@
-import sys, pathlib, unittest
+import pathlib
+import sys
+import unittest
 import xml.etree.ElementTree as ET
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
@@ -21,6 +23,15 @@ class TestParsing(unittest.TestCase):
                          "http://loxone:geheim@192.168.1.50:5000")
         cfg = dict(CFG, api_user="", api_pass="")
         self.assertEqual(mt.base_address(cfg), "http://192.168.1.50:5000")
+
+    def test_credentials_and_switch_names_are_url_encoded(self):
+        cfg = dict(CFG, api_user="lox one", api_pass="p@ss:word")
+        self.assertIn("lox%20one:p%40ss%3Aword@", mt.base_address(cfg))
+        devices = mt.build_vi_devices(cfg, [{
+            "name": "Rack & OG/West", "mac": "aa:bb:cc:dd:ee:ff", "ports": [1]
+        }])
+        self.assertIn("switch=Rack%20%26%20OG%2FWest", devices[0]["url"])
+        self.assertEqual("VI_Rack_OG_West_status.xml", devices[0]["filename"])
 
 
 class TestVo(unittest.TestCase):

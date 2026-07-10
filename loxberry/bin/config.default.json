@@ -7,5 +7,9 @@
   "API_USER": "",
   "API_PASS": "",
   "SWITCHES_JSON": "{}",
-  "BRIDGE_PORT": "5000"
+  "BRIDGE_PORT": "5000",
+  "BRIDGE_BIND": "0.0.0.0",
+  "UNIFI_TLS_VERIFY": "true",
+  "UNIFI_CA_BUNDLE": "",
+  "DEVICE_CACHE_TTL": "2.0"
 }

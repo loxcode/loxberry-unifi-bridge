@@ -17,10 +17,12 @@ fi
 
 CONFIG_BASE="${LBPCONFIG:-$LBHOME/config/plugins}"
 BIN_BASE="${LBPBIN:-$LBHOME/bin/plugins}"
+DATA_BASE="${LBPDATA:-$LBHOME/data/plugins}"
 PCONFIG="$CONFIG_BASE/$PDIR"
 PBIN="$BIN_BASE/$PDIR"
+PDATA="$DATA_BASE/$PDIR"
 
-mkdir -p "$PCONFIG"
+mkdir -p "$PCONFIG" "$PDATA"
 
 if [ ! -f "$PCONFIG/config.json" ]; then
     cp "$PBIN/config.default.json" "$PCONFIG/config.json"
@@ -30,4 +32,7 @@ else
 fi
 
 chmod +x "$PBIN/restart.sh" 2>/dev/null
+chown -R loxberry:loxberry "$PCONFIG" "$PDATA" 2>/dev/null || true
+chmod 0700 "$PCONFIG" 2>/dev/null || true
+chmod 0600 "$PCONFIG/config.json" 2>/dev/null || true
 exit 0

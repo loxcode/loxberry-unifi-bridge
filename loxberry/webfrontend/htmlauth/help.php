@@ -97,7 +97,7 @@ if (class_exists('LBWeb')) {
   </table>
 
   <div class="ucb-note">
-    <strong>Sicherheit:</strong> Die Bridge gehört nur ins lokale Netzwerk. Lege für UniFi und für die Bridge eigene Zugangsdaten mit möglichst wenig Rechten an.
+    <strong>Sicherheit:</strong> Die Bridge gehört nur ins lokale Netzwerk. API-Zugangsdaten sind Pflicht. Lege für UniFi einen eigenen Benutzer mit möglichst wenig Rechten an und lasse die Zertifikatsprüfung aktiv. Bei einem selbstsignierten Controller-Zertifikat kannst du eine eigene CA-Datei hinterlegen.
   </div>
 </div>
 <?php

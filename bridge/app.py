@@ -9,7 +9,9 @@ HTTP-API kompatibel zur unifi-poe-bridge, plus Loxone-freundliche
 .txt-Endpoints. Konfiguration via Env oder BRIDGE_CONFIG-JSON.
 """
 import json
+import hmac
 import os
+import re
 from functools import wraps
 
 from flask import Flask, Response, jsonify, request
@@ -19,39 +21,80 @@ import loxone_templates
 
 ENV_KEYS = ("UNIFI_HOST", "UNIFI_SITE", "UNIFI_USER", "UNIFI_PASS",
             "DEFAULT_TIMEOUT", "API_USER", "API_PASS", "SWITCHES_JSON",
-            "BRIDGE_PORT")
+            "BRIDGE_PORT", "BRIDGE_BIND", "UNIFI_TLS_VERIFY",
+            "UNIFI_CA_BUNDLE", "DEVICE_CACHE_TTL")
 
 DEFAULTS = {"UNIFI_HOST": "https://192.168.1.1", "UNIFI_SITE": "default",
             "UNIFI_USER": "", "UNIFI_PASS": "", "DEFAULT_TIMEOUT": "5.0",
             "API_USER": "", "API_PASS": "", "SWITCHES_JSON": "{}",
-            "BRIDGE_PORT": "5000"}
+            "BRIDGE_PORT": "5000", "BRIDGE_BIND": "0.0.0.0",
+            "UNIFI_TLS_VERIFY": "true", "UNIFI_CA_BUNDLE": "",
+            "DEVICE_CACHE_TTL": "2.0"}
+
+APP_VERSION = "1.0.19"
+
+
+def as_bool(value) -> bool:
+    return str(value).strip().lower() in ("1", "true", "yes", "on", "ja")
+
+
+def bounded_number(value, default, minimum, maximum, cast=float):
+    try:
+        parsed = cast(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, parsed))
+
+
+def valid_bridge_host(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.:-]{0,252}", value or ""))
+
+
+def secure_equal(left, right) -> bool:
+    return hmac.compare_digest(
+        str(left or "").encode("utf-8"), str(right or "").encode("utf-8"))
 
 
 def load_settings() -> dict:
     settings = {k: os.getenv(k, DEFAULTS[k]) for k in ENV_KEYS}
     cfg_path = os.getenv("BRIDGE_CONFIG", "")
     if cfg_path and os.path.exists(cfg_path):
-        with open(cfg_path, encoding="utf-8") as f:
-            file_cfg = json.load(f)
+        try:
+            with open(cfg_path, encoding="utf-8") as f:
+                file_cfg = json.load(f)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError("Bridge-Konfiguration ist nicht lesbar") from exc
+        if not isinstance(file_cfg, dict):
+            raise RuntimeError("Bridge-Konfiguration muss ein JSON-Objekt sein")
         for k in ENV_KEYS:
             if k in file_cfg:
                 settings[k] = (json.dumps(file_cfg[k])
                                if isinstance(file_cfg[k], dict)
                                else str(file_cfg[k]))
+        # Bestehende Installationen nutzten bisher immer verify=False. Nur neue
+        # Standard-Configs aktivieren die Zertifikatspruefung automatisch.
+        if "UNIFI_TLS_VERIFY" not in file_cfg:
+            settings["UNIFI_TLS_VERIFY"] = "false"
     return settings
 
 
 def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
     app = Flask(__name__)
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
+    auth_configured = bool(api_user and api_pass)
 
     def require_auth(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            if not api_user or not api_pass:
-                return f(*args, **kwargs)
+            if not auth_configured:
+                return jsonify({
+                    "ok": False,
+                    "error": "API-Zugangsdaten muessen zuerst konfiguriert werden",
+                }), 503
             auth = request.authorization
-            if (not auth or auth.username != api_user
-                    or auth.password != api_pass):
+            if (not auth
+                    or not secure_equal(auth.username, api_user)
+                    or not secure_equal(auth.password, api_pass)):
                 return Response("Authentifizierung erforderlich", 401,
                                 {"WWW-Authenticate": 'Basic realm="Login"'})
             return f(*args, **kwargs)
@@ -75,8 +118,14 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
             if not part:
                 continue
             try:
-                ports.append(int(part))
+                port = int(part)
+                if port < 1 or port > 1024:
+                    return None
+                if port not in ports:
+                    ports.append(port)
             except ValueError:
+                return None
+            if len(ports) > 128:
                 return None
         return ports
 
@@ -85,13 +134,15 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
 
     @app.route("/health")
     def health():
-        return jsonify({"status": "ok"})
+        return jsonify({"status": "ok", "service": "unifi_bridge",
+                        "version": APP_VERSION,
+                        "auth_configured": auth_configured})
 
     @app.route("/selftest")
+    @require_auth
     def selftest():
-        # Read-only-Diagnose ohne Auth: prueft die Kette Bridge->UDM, ohne
-        # Zugangsdaten preiszugeben. Zeigt, ob die konfigurierten Switches
-        # im Controller gefunden werden (Namen sind im LAN ohnehin sichtbar).
+        # Read-only-Diagnose: prueft die Kette Bridge->UDM, ohne Zugangsdaten
+        # oder MAC-Adressen preiszugeben.
         try:
             devices = client.get_devices()
         except Exception as e:  # noqa: BLE001 - Diagnose soll nie crashen
@@ -132,6 +183,8 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
         # Ports werden per Discovery ermittelt; Host aus ?host= (Default:
         # der Host, ueber den der Aufruf kam).
         host = request.args.get("host") or request.host.split(":")[0]
+        if not valid_bridge_host(host):
+            return jsonify({"ok": False, "error": "ungueltiger Bridge-Host"}), 400
         try:
             found = {s["mac"]: s for s in client.discover_switches()}
         except Exception:  # noqa: BLE001
@@ -279,19 +332,38 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
     return app
 
 
-def main():
+def create_runtime_app():
     s = load_settings()
     try:
         switches = json.loads(s["SWITCHES_JSON"])
     except json.JSONDecodeError:
         switches = {}
-    client = UnifiClient(s["UNIFI_HOST"], site=s["UNIFI_SITE"],
-                         username=s["UNIFI_USER"], password=s["UNIFI_PASS"],
-                         timeout=float(s["DEFAULT_TIMEOUT"]))
-    app = create_app(client, switches,
-                     api_user=s["API_USER"], api_pass=s["API_PASS"],
-                     bridge_port=int(s["BRIDGE_PORT"]))
-    app.run(host="0.0.0.0", port=int(s["BRIDGE_PORT"]))
+    timeout = bounded_number(s["DEFAULT_TIMEOUT"], 5.0, 0.5, 60.0)
+    cache_ttl = bounded_number(s["DEVICE_CACHE_TTL"], 2.0, 0.0, 30.0)
+    verify = s["UNIFI_CA_BUNDLE"].strip() or as_bool(s["UNIFI_TLS_VERIFY"])
+    client = UnifiClient(
+        s["UNIFI_HOST"],
+        site=s["UNIFI_SITE"],
+        username=s["UNIFI_USER"],
+        password=s["UNIFI_PASS"],
+        timeout=timeout,
+        verify=verify,
+        device_cache_ttl=cache_ttl,
+    )
+    port = bounded_number(s["BRIDGE_PORT"], 5000, 1, 65535, int)
+    return create_app(client, switches,
+                      api_user=s["API_USER"], api_pass=s["API_PASS"],
+                      bridge_port=port)
+
+
+application = create_runtime_app()
+
+
+def main():
+    s = load_settings()
+    port = bounded_number(s["BRIDGE_PORT"], 5000, 1, 65535, int)
+    bind = s["BRIDGE_BIND"] if valid_bridge_host(s["BRIDGE_BIND"]) else "0.0.0.0"
+    application.run(host=bind, port=port, threaded=True)
 
 
 if __name__ == "__main__":

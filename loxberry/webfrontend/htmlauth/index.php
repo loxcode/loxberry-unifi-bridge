@@ -4,6 +4,14 @@
 @include_once "loxberry_system.php";
 @include_once "loxberry_web.php";
 
+if (PHP_SAPI !== 'cli' && session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+if (!isset($_SESSION['unifi_bridge_csrf'])) {
+    $_SESSION['unifi_bridge_csrf'] = bin2hex(random_bytes(32));
+}
+$csrf_token = $_SESSION['unifi_bridge_csrf'];
+
 // Echten Plugin-Ordnernamen ermitteln (LoxBerry kann Suffixe anhaengen)
 $plugindir = basename(__DIR__);
 $configdir = isset($lbpconfigdir) ? $lbpconfigdir
@@ -16,15 +24,44 @@ $msg_ok = true;
 $MAX_SWITCHES = 8;
 $discovered = null;   // Ergebnis der Switch-Autoerkennung
 
-$plugincfg = file_exists($configfile)
+$rawcfg = file_exists($configfile)
     ? json_decode(file_get_contents($configfile), true)
     : array();
+$legacy_tls_config = is_array($rawcfg) && !array_key_exists('UNIFI_TLS_VERIFY', $rawcfg);
 $defaults = array('UNIFI_HOST' => 'https://192.168.1.1', 'UNIFI_SITE' => 'default',
     'UNIFI_USER' => '', 'UNIFI_PASS' => '', 'DEFAULT_TIMEOUT' => '5.0',
     'API_USER' => '', 'API_PASS' => '', 'SWITCHES_JSON' => '{}',
-    'BRIDGE_PORT' => '5000');
-$plugincfg = array_merge($defaults, is_array($plugincfg) ? $plugincfg : array());
+    'BRIDGE_PORT' => '5000', 'BRIDGE_BIND' => '0.0.0.0',
+    'UNIFI_TLS_VERIFY' => 'true', 'UNIFI_CA_BUNDLE' => '',
+    'DEVICE_CACHE_TTL' => '2.0');
+$plugincfg = array_merge($defaults, is_array($rawcfg) ? $rawcfg : array());
+if ($legacy_tls_config) { $plugincfg['UNIFI_TLS_VERIFY'] = 'false'; }
 $SECRETS = array('UNIFI_PASS', 'API_PASS');
+
+function h($value) {
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+function atomic_write_json($path, $value) {
+    $dir = dirname($path);
+    $tmp = tempnam($dir, '.config.');
+    if ($tmp === false) { return false; }
+    $json = json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    $written = @file_put_contents($tmp, $json . "\n", LOCK_EX);
+    if ($written === false || !@chmod($tmp, 0600) || !@rename($tmp, $path)) {
+        @unlink($tmp);
+        return false;
+    }
+    return $written;
+}
+
+function valid_unifi_host($value) {
+    $parts = @parse_url($value);
+    return is_array($parts)
+        && isset($parts['scheme'], $parts['host'])
+        && in_array(strtolower($parts['scheme']), array('http', 'https'), true)
+        && !isset($parts['user']) && !isset($parts['pass']) && !isset($parts['query']);
+}
 
 // Ruft die lokale Bridge auf (mit Basic Auth aus der Config). $code per Referenz.
 function bridge_call($path, &$code, &$ctype) {
@@ -50,6 +87,14 @@ function bridge_call($path, &$code, &$ctype) {
 
 $action = isset($_POST['action']) ? $_POST['action'] : 'save';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && PHP_SAPI !== 'cli') {
+    $posted_csrf = isset($_POST['csrf_token']) ? (string)$_POST['csrf_token'] : '';
+    if (!hash_equals($csrf_token, $posted_csrf)) {
+        http_response_code(403);
+        exit('Ungültige Anfrage. Bitte die Pluginseite neu laden.');
+    }
+}
+
 // --- Aktion: Vorlagen-Download (muss VOR jeglicher Ausgabe passieren) --------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'download') {
     $host = preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']);
@@ -71,18 +116,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'download') {
 // --- Aktion: Speichern -------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
     foreach (array('UNIFI_HOST', 'UNIFI_SITE', 'UNIFI_USER',
-                   'DEFAULT_TIMEOUT', 'API_USER', 'BRIDGE_PORT') as $k) {
+                   'DEFAULT_TIMEOUT', 'API_USER', 'BRIDGE_PORT',
+                   'BRIDGE_BIND', 'UNIFI_TLS_VERIFY', 'UNIFI_CA_BUNDLE',
+                   'DEVICE_CACHE_TTL') as $k) {
         if (isset($_POST[$k])) { $plugincfg[$k] = trim($_POST[$k]); }
     }
     foreach ($SECRETS as $k) {
-        if (isset($_POST[$k]) && $_POST[$k] !== '') { $plugincfg[$k] = trim($_POST[$k]); }
+        if (!empty($_POST['clear_' . $k])) {
+            $plugincfg[$k] = '';
+        } elseif (isset($_POST[$k]) && $_POST[$k] !== '') {
+            $plugincfg[$k] = trim($_POST[$k]);
+        }
     }
+    $port = filter_var($plugincfg['BRIDGE_PORT'], FILTER_VALIDATE_INT,
+        array('options' => array('min_range' => 1, 'max_range' => 65535)));
+    $timeout = filter_var($plugincfg['DEFAULT_TIMEOUT'], FILTER_VALIDATE_FLOAT);
+    $cache_ttl = filter_var($plugincfg['DEVICE_CACHE_TTL'], FILTER_VALIDATE_FLOAT);
+    if (!valid_unifi_host($plugincfg['UNIFI_HOST'])) {
+        $msg = 'UniFi-Host muss eine vollständige HTTP- oder HTTPS-URL ohne Zugangsdaten sein.';
+        $msg_ok = false;
+    } elseif (!preg_match('/^[A-Za-z0-9._-]{1,64}$/', $plugincfg['UNIFI_SITE'])) {
+        $msg = 'Die UniFi-Site enthält ungültige Zeichen.';
+        $msg_ok = false;
+    } elseif ($port === false) {
+        $msg = 'Der Bridge-Port muss zwischen 1 und 65535 liegen.';
+        $msg_ok = false;
+    } elseif ($timeout === false || $timeout < 0.5 || $timeout > 60) {
+        $msg = 'Der Timeout muss zwischen 0,5 und 60 Sekunden liegen.';
+        $msg_ok = false;
+    } elseif ($cache_ttl === false || $cache_ttl < 0 || $cache_ttl > 30) {
+        $msg = 'Der Gerätecache muss zwischen 0 und 30 Sekunden liegen.';
+        $msg_ok = false;
+    } elseif (!in_array($plugincfg['BRIDGE_BIND'], array('0.0.0.0', '127.0.0.1'), true)) {
+        $msg = 'Die Bind-Adresse muss 0.0.0.0 oder 127.0.0.1 sein.';
+        $msg_ok = false;
+    } elseif ($plugincfg['UNIFI_CA_BUNDLE'] !== ''
+            && (!is_file($plugincfg['UNIFI_CA_BUNDLE']) || !is_readable($plugincfg['UNIFI_CA_BUNDLE']))) {
+        $msg = 'Die angegebene CA-Datei existiert nicht oder ist nicht lesbar.';
+        $msg_ok = false;
+    } elseif ($plugincfg['API_USER'] === '' || $plugincfg['API_PASS'] === '') {
+        $msg = 'API-Benutzer und API-Passwort sind Pflicht, weil die Bridge PoE-Ports schalten kann.';
+        $msg_ok = false;
+    }
+    if ($port !== false) { $plugincfg['BRIDGE_PORT'] = (string)$port; }
+    if ($timeout !== false) { $plugincfg['DEFAULT_TIMEOUT'] = (string)$timeout; }
+    if ($cache_ttl !== false) { $plugincfg['DEVICE_CACHE_TTL'] = (string)$cache_ttl; }
     $sw = array();
     for ($i = 0; $i < $MAX_SWITCHES; $i++) {
         $n = isset($_POST["sw_name_$i"]) ? trim($_POST["sw_name_$i"]) : '';
         $m = isset($_POST["sw_mac_$i"]) ? strtolower(trim($_POST["sw_mac_$i"])) : '';
         if ($n === '' && $m === '') { continue; }
-        if ($n === '' || !preg_match('/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/', $m)) {
+        if ($n === '' || strlen($n) > 64 || preg_match('/[\x00-\x1F\x7F]/', $n)
+                || !preg_match('/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/', $m)) {
             $msg = "Zeile " . ($i + 1) . ": Name fehlt oder MAC ungueltig "
                  . "(Format aa:bb:cc:dd:ee:ff) - nicht gespeichert.";
             $msg_ok = false;
@@ -93,8 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
     if ($msg_ok) {
         $plugincfg['SWITCHES_JSON'] = json_encode($sw, JSON_UNESCAPED_SLASHES);
         if (!is_dir($configdir)) { @mkdir($configdir, 0750, true); }
-        $written = @file_put_contents($configfile,
-            json_encode($plugincfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $written = atomic_write_json($configfile, $plugincfg);
         if ($written === false) {
             $msg = 'Konnte ' . $configfile . ' nicht schreiben (Rechte?).';
             $msg_ok = false;
@@ -137,8 +221,18 @@ if (is_array($discovered)) {
 
 $base = 'http://127.0.0.1:' . $plugincfg['BRIDGE_PORT'];
 $health = @file_get_contents($base . '/health');
-$running = ($health !== false && strpos($health, 'ok') !== false);
-$selftest = $running ? json_decode(@file_get_contents($base . '/selftest'), true) : null;
+$health_data = ($health !== false) ? json_decode($health, true) : null;
+$running = (is_array($health_data)
+    && isset($health_data['status'], $health_data['service'], $health_data['version'])
+    && $health_data['status'] === 'ok'
+    && $health_data['service'] === 'unifi_bridge'
+    && $health_data['version'] === '1.0.19');
+$health_mismatch = ($health !== false && !$running);
+$selftest = null;
+if ($running && $plugincfg['API_USER'] !== '' && $plugincfg['API_PASS'] !== '') {
+    $selftest_code = 0; $selftest_type = '';
+    $selftest = json_decode((string)bridge_call('/selftest', $selftest_code, $selftest_type), true);
+}
 $has_switches = (count($switches) > 0);
 
 function tf($label, $name, $value, $type = 'text', $ph = '') {
@@ -152,8 +246,8 @@ function tf($label, $name, $value, $type = 'text', $ph = '') {
     echo '<tr><td style="padding:4px 10px 4px 0;white-space:nowrap;">'
        . $label . '</td><td style="padding:4px 0;">'
        . '<input type="' . $type . '" name="' . $name . '" style="width:320px;"'
-       . $extra . ' value="' . htmlspecialchars($value) . '"'
-       . ($ph ? ' placeholder="' . $ph . '"' : '') . '></td></tr>' . "\n";
+       . $extra . ' value="' . h($value) . '"'
+       . ($ph ? ' placeholder="' . h($ph) . '"' : '') . '></td></tr>' . "\n";
 }
 
 // 4. Parameter true => jQuery Mobile wird NICHT geladen
@@ -171,6 +265,16 @@ if (class_exists('LBWeb')) {
     ? '<strong style="color:#2e7d32;">&#9679; l&auml;uft</strong>'
     : '<strong style="color:#c62828;">&#9679; nicht erreichbar</strong>'; ?>
 </p>
+<?php if ($health_mismatch) { ?>
+  <p style="border:1px solid #c62828;color:#c62828;padding:8px 12px;border-radius:4px;">
+    Auf dem konfigurierten Port antwortet ein anderer Dienst oder eine alte Bridge-Version.
+  </p>
+<?php } ?>
+<?php if ($plugincfg['API_USER'] === '' || $plugincfg['API_PASS'] === '') { ?>
+  <p style="border:1px solid #c62828;color:#c62828;padding:8px 12px;border-radius:4px;">
+    Die Bridge-Endpunkte sind gesperrt. Bitte API-Benutzer und API-Passwort konfigurieren.
+  </p>
+<?php } ?>
 
 <?php if (is_array($selftest)) {
     $ok = !empty($selftest['login_ok']) && empty($selftest['switches_missing']);
@@ -220,6 +324,7 @@ if (class_exists('LBWeb')) {
 <?php } ?>
 
 <form method="post" action="index.php">
+  <input type="hidden" name="csrf_token" value="<?php echo h($csrf_token); ?>">
   <input type="hidden" name="action" value="save">
 
   <h3>UniFi-Controller / UDM</h3>
@@ -232,6 +337,21 @@ if (class_exists('LBWeb')) {
   tf('Timeout (Sekunden)', 'DEFAULT_TIMEOUT', $plugincfg['DEFAULT_TIMEOUT']);
   ?>
   </tbody></table>
+  <label><input type="checkbox" name="clear_UNIFI_PASS" value="1"> gespeichertes UniFi-Passwort löschen</label>
+
+  <h3>Controller-Zertifikat</h3>
+  <table><tbody>
+    <tr><td style="padding:4px 10px 4px 0;">TLS-Prüfung</td><td>
+      <select name="UNIFI_TLS_VERIFY" style="width:320px;">
+        <option value="true"<?php echo $plugincfg['UNIFI_TLS_VERIFY'] !== 'false' ? ' selected' : ''; ?>>Zertifikat prüfen</option>
+        <option value="false"<?php echo $plugincfg['UNIFI_TLS_VERIFY'] === 'false' ? ' selected' : ''; ?>>Unsicher - Prüfung deaktivieren</option>
+      </select>
+    </td></tr>
+  <?php tf('Eigene CA-Datei (optional)', 'UNIFI_CA_BUNDLE', $plugincfg['UNIFI_CA_BUNDLE'], 'text', '/pfad/ca.pem'); ?>
+  </tbody></table>
+  <?php if ($plugincfg['UNIFI_TLS_VERIFY'] === 'false') { ?>
+    <p style="color:#c62828;"><strong>Warnung:</strong> Ohne Zertifikatsprüfung können UniFi-Zugangsdaten im Netzwerk abgefangen werden.</p>
+  <?php } ?>
 
   <h3>Bridge-API (Zugang f&uuml;r Loxone)</h3>
   <table><tbody>
@@ -239,8 +359,11 @@ if (class_exists('LBWeb')) {
   tf('API-Benutzer', 'API_USER', $plugincfg['API_USER']);
   tf('API-Passwort', 'API_PASS', $plugincfg['API_PASS'], 'password');
   tf('Bridge-Port', 'BRIDGE_PORT', $plugincfg['BRIDGE_PORT']);
+  tf('Bind-Adresse', 'BRIDGE_BIND', $plugincfg['BRIDGE_BIND'], 'text', '0.0.0.0');
+  tf('Gerätecache (Sekunden)', 'DEVICE_CACHE_TTL', $plugincfg['DEVICE_CACHE_TTL']);
   ?>
   </tbody></table>
+  <p><small>API-Benutzer und API-Passwort sind Pflicht. Ohne beide Angaben bleiben alle Bridge-Endpunkte außer <code>/health</code> gesperrt.</small></p>
 
   <h3>Switches</h3>
   <p style="margin-top:0;"><small>Name frei w&auml;hlbar (wird in den Loxone-Befehlen verwendet),
@@ -274,6 +397,7 @@ if (class_exists('LBWeb')) {
 
 <?php if ($running && $has_switches) { ?>
 <form method="post" action="index.php" style="margin-top:4px;">
+  <input type="hidden" name="csrf_token" value="<?php echo h($csrf_token); ?>">
   <input type="hidden" name="action" value="download">
   <h3>Loxone-Vorlagen</h3>
   <p style="margin-top:0;"><small>Erzeugt aus den gespeicherten Switches ein ZIP mit

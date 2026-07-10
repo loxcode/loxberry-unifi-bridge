@@ -20,8 +20,10 @@ fi
 
 CONFIG_BASE="${LBPCONFIG:-$LBHOME/config/plugins}"
 BIN_BASE="${LBPBIN:-$LBHOME/bin/plugins}"
+DATA_BASE="${LBPDATA:-$LBHOME/data/plugins}"
 PCONFIG="$CONFIG_BASE/$PDIR"
 PBIN="$BIN_BASE/$PDIR"
+PDATA="$DATA_BASE/$PDIR"
 BACKUP="$PTEMPPATH/config/$PDIR"
 
 mkdir -p "$PCONFIG" || {
@@ -47,10 +49,25 @@ else
 fi
 
 chmod +x "$PBIN/restart.sh" 2>/dev/null
+mkdir -p "$PDATA"
+chown -R loxberry:loxberry "$PCONFIG" "$PDATA" 2>/dev/null || true
+chmod 0700 "$PCONFIG" 2>/dev/null || true
+chmod 0600 "$PCONFIG/config.json" 2>/dev/null || true
 
-if [ -n "$PTEMPPATH" ] && [ -d "$PTEMPPATH" ] \
-   && [ "$PTEMPPATH" != "/" ] && [ "$PTEMPPATH" != "/tmp" ]; then
-    rm -rf "$PTEMPPATH"
+if [ -n "$PTEMPPATH" ] && [ -d "$PTEMPPATH" ]; then
+    SAFE_TEMP="$(realpath -m "$PTEMPPATH" 2>/dev/null || true)"
+    case "$SAFE_TEMP" in
+        /tmp/*|/var/tmp/*) rm -rf "$SAFE_TEMP" ;;
+        *) echo "<INFO> Temp-Ordner wird aus Sicherheitsgruenden nicht geloescht: $PTEMPPATH" ;;
+    esac
+fi
+
+if [ "${LOXBERRY_SKIP_RESTART:-0}" != "1" ] && [ -x "$PBIN/restart.sh" ]; then
+    echo "<INFO> Starte UniFi Bridge mit der neuen Version neu."
+    if ! bash "$PBIN/restart.sh"; then
+        echo "<ERROR> UniFi Bridge konnte nach dem Update nicht gestartet werden."
+        exit 1
+    fi
 fi
 
 exit 0

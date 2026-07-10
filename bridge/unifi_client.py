@@ -6,63 +6,93 @@
 Portiert aus der produktiv erprobten unifi-poe-bridge; probiert je
 Aufruf den UniFi-OS-Proxypfad und den Legacy-Controllerpfad.
 """
-import requests
-import urllib3
+import logging
+import threading
+import time
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import requests
+
+
+logger = logging.getLogger(__name__)
 
 
 class UnifiClient:
     def __init__(self, host, site="default", username="", password="",
-                 timeout=5.0):
+                 timeout=5.0, verify=True, device_cache_ttl=2.0):
         self.host = host.rstrip("/")
         self.site = site
         self.username = username
         self.password = password
         self.timeout = timeout
+        self.verify = verify
+        self.device_cache_ttl = max(0.0, float(device_cache_ttl))
         self.session = requests.Session()
         self._logged_in = False
+        self._lock = threading.RLock()
+        self._devices_cache = None
+        self._devices_cache_at = 0.0
 
     # ---------- Auth ----------
 
     def login(self, force=False) -> bool:
-        if self._logged_in and not force:
-            return True
-        payload = {"username": self.username, "password": self.password}
-        for path in ("/api/auth/login", "/api/login"):
-            try:
-                r = self.session.post(self.host + path, json=payload,
-                                      verify=False, timeout=self.timeout)
-            except requests.RequestException:
-                continue
-            if r.status_code in (200, 201):
-                csrf = (r.headers.get("X-CSRF-Token")
-                        or r.headers.get("x-csrf-token"))
-                if csrf:
-                    self.session.headers["X-CSRF-Token"] = csrf
-                self._logged_in = True
+        with self._lock:
+            if self._logged_in and not force:
                 return True
-        self._logged_in = False
-        return False
+            payload = {"username": self.username, "password": self.password}
+            for path in ("/api/auth/login", "/api/login"):
+                try:
+                    r = self.session.post(
+                        self.host + path,
+                        json=payload,
+                        verify=self.verify,
+                        timeout=self.timeout,
+                    )
+                except requests.RequestException as exc:
+                    logger.warning("UniFi-Login via %s fehlgeschlagen: %s",
+                                   path, type(exc).__name__)
+                    continue
+                if r.status_code in (200, 201):
+                    csrf = (r.headers.get("X-CSRF-Token")
+                            or r.headers.get("x-csrf-token"))
+                    if csrf:
+                        self.session.headers["X-CSRF-Token"] = csrf
+                    self._logged_in = True
+                    return True
+            self._logged_in = False
+            return False
 
     def _request(self, method, path, **kwargs):
-        if not self.login():
-            return None
-        try:
-            r = self.session.request(method, self.host + path, verify=False,
-                                     timeout=self.timeout, **kwargs)
-        except requests.RequestException:
-            return None
-        if r.status_code == 401:
-            if not self.login(force=True):
-                return r
-            try:
-                r = self.session.request(method, self.host + path,
-                                         verify=False, timeout=self.timeout,
-                                         **kwargs)
-            except requests.RequestException:
+        with self._lock:
+            if not self.login():
                 return None
-        return r
+            try:
+                r = self.session.request(
+                    method,
+                    self.host + path,
+                    verify=self.verify,
+                    timeout=self.timeout,
+                    **kwargs,
+                )
+            except requests.RequestException as exc:
+                logger.warning("UniFi-Request %s %s fehlgeschlagen: %s",
+                               method, path, type(exc).__name__)
+                return None
+            if r.status_code in (401, 403):
+                if not self.login(force=True):
+                    return r
+                try:
+                    r = self.session.request(
+                        method,
+                        self.host + path,
+                        verify=self.verify,
+                        timeout=self.timeout,
+                        **kwargs,
+                    )
+                except requests.RequestException as exc:
+                    logger.warning("UniFi-Retry %s %s fehlgeschlagen: %s",
+                                   method, path, type(exc).__name__)
+                    return None
+            return r
 
     def _api(self, method, subpath, **kwargs):
         r = None
@@ -75,15 +105,34 @@ class UnifiClient:
 
     # ---------- Geraete ----------
 
-    def get_devices(self) -> list:
+    def _clear_device_cache(self):
+        with self._lock:
+            self._devices_cache = None
+            self._devices_cache_at = 0.0
+
+    def get_devices(self, force=False) -> list:
+        now = time.monotonic()
+        with self._lock:
+            if (not force and self._devices_cache is not None
+                    and now - self._devices_cache_at < self.device_cache_ttl):
+                return self._devices_cache
         r = self._api("GET", "/stat/device")
         if r is not None and r.status_code == 200:
-            return r.json().get("data", [])
+            try:
+                devices = r.json().get("data", [])
+            except (TypeError, ValueError):
+                return []
+            if not isinstance(devices, list):
+                return []
+            with self._lock:
+                self._devices_cache = devices
+                self._devices_cache_at = time.monotonic()
+            return devices
         return []
 
-    def find_switch(self, mac):
+    def find_switch(self, mac, force=False):
         mac = mac.lower()
-        for dev in self.get_devices():
+        for dev in self.get_devices(force=force):
             if dev.get("mac", "").lower() == mac:
                 return dev
         return None
@@ -123,9 +172,16 @@ class UnifiClient:
     def set_poe(self, mac, ports, state):
         if state not in ("on", "off"):
             raise ValueError("state muss 'on' oder 'off' sein")
-        dev = self.find_switch(mac)
+        dev = self.find_switch(mac, force=True)
         if not dev:
             return False, "Switch mit dieser MAC nicht gefunden"
+        valid_ports = {
+            p.get("port_idx") for p in dev.get("port_table", [])
+            if p.get("port_idx") is not None and p.get("poe_mode") is not None
+        }
+        invalid_ports = sorted(set(ports) - valid_ports)
+        if invalid_ports:
+            return False, "Keine PoE-Ports: " + ", ".join(map(str, invalid_ports))
         overrides = dev.get("port_overrides", [])
         mode = "auto" if state == "on" else "off"
         for idx in ports:
@@ -141,8 +197,13 @@ class UnifiClient:
         if r is None or r.status_code != 200:
             code = getattr(r, "status_code", "keine Antwort")
             return False, f"Update der port_overrides fehlgeschlagen: {code}"
-        self._api("POST", "/cmd/devmgr",
-                  json={"cmd": "force-provision", "mac": mac.lower()})
+        self._clear_device_cache()
+        provision = self._api(
+            "POST", "/cmd/devmgr",
+            json={"cmd": "force-provision", "mac": mac.lower()},
+        )
+        if provision is None or provision.status_code != 200:
+            return False, "PoE gesetzt, aber Provisionierung fehlgeschlagen"
         return True, "OK"
 
     def poe_status(self, mac, ports):
@@ -186,3 +247,9 @@ class UnifiClient:
         if not dev:
             return None
         return dev.get("state") == 1
+
+    def close(self):
+        with self._lock:
+            self.session.close()
+            self._logged_in = False
+            self._devices_cache = None

@@ -18,9 +18,9 @@ Diese Werte muessen im Wiki unterhalb des Editorfensters in den
 | Autor | LOXCODE |
 | Logo | `plugins:unifi_bridge:icon_128.png` |
 | Status | STABLE |
-| Version | 1.0.16 |
+| Version | 1.0.19 |
 | Min. LB Version | 2.0.0 |
-| Release Download | https://github.com/loxcode/loxberry-unifi-bridge/releases/download/v1.0.16/loxcode_bridge-1.0.16.zip |
+| Release Download | https://github.com/loxcode/loxberry-unifi-bridge/releases/download/v1.0.19/loxcode_bridge-1.0.19.zip |
 | Pre-Release Download |  |
 | Beschreibung | UniFi Bridge schaltet UniFi-PoE-Ports aus Loxone und liefert Statuswerte wie PoE-Zustand, Leistung und Online-Status zurueck. |
 | Sprachen | DE |
@@ -63,7 +63,7 @@ UniFi Bridge ist ein LoxBerry-Plugin, das UniFi-PoE-Switches ueber Loxone steuer
 Das Plugin-ZIP herunterladen und ueber die LoxBerry-Pluginverwaltung installieren:
 
   * [[https://github.com/loxcode/loxberry-unifi-bridge/releases/latest|Aktuelle Version]]
-  * [[https://github.com/loxcode/loxberry-unifi-bridge/releases/download/v1.0.16/loxcode_bridge-1.0.16.zip|Direktdownload 1.0.16]]
+  * [[https://github.com/loxcode/loxberry-unifi-bridge/releases/download/v1.0.19/loxcode_bridge-1.0.19.zip|Direktdownload 1.0.19]]
 
 Nach der Installation ist die Pluginseite in der LoxBerry-Pluginverwaltung unter **UniFi Bridge** erreichbar.
 

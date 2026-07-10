@@ -1,4 +1,11 @@
-import os, pathlib, shutil, subprocess, sys, tempfile, unittest, zipfile
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+import zipfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
 from build_loxberry_zip import build_zip, plugin_version
@@ -7,6 +14,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class TestZip(unittest.TestCase):
+    def test_build_is_reproducible(self):
+        first = build_zip().read_bytes()
+        second = build_zip().read_bytes()
+        self.assertEqual(first, second)
+
     def test_zip_contains_plugin_structure_and_app(self):
         path = build_zip()
         self.assertRegex(path.name, r"^loxcode_bridge-\d+\.\d+\.\d+\.zip$")
@@ -56,12 +68,43 @@ class TestZip(unittest.TestCase):
         self.assertIn("Loxone verwenden", help_page)
         self.assertIn("Fehlersuche", help_page)
 
+    def test_secure_runtime_defaults_are_shipped(self):
+        config = (ROOT / "loxberry" / "bin" / "config.default.json").read_text(
+            encoding="utf-8")
+        frontend = (ROOT / "loxberry" / "webfrontend" / "htmlauth" / "index.php").read_text(
+            encoding="utf-8")
+        restart = (ROOT / "loxberry" / "bin" / "restart.sh").read_text(
+            encoding="utf-8")
+        self.assertIn('"UNIFI_TLS_VERIFY": "true"', config)
+        self.assertIn('name="csrf_token"', frontend)
+        self.assertIn("API-Benutzer und API-Passwort sind Pflicht", frontend)
+        self.assertIn("python3 -m gunicorn", restart)
+        self.assertIn("--pid \"$PID\"", restart)
+        self.assertIn("Migration von Versionen", restart)
+        self.assertIn("flock -w 15", restart)
+        self.assertIn("Festgehaltenen Restart-Lock", restart)
+        self.assertIn("app:application 9>&-", restart)
+        self.assertIn("EXPECTED_VERSION", restart)
+        self.assertNotIn("pkill", restart)
+
+    def test_version_is_consistent_across_runtime_and_plugin_ui(self):
+        version = plugin_version()
+        app = (ROOT / "bridge" / "app.py").read_text(encoding="utf-8")
+        frontend = (ROOT / "loxberry" / "webfrontend" / "htmlauth" / "index.php").read_text(
+            encoding="utf-8")
+        release = (ROOT / "loxberry" / "release.cfg").read_text(encoding="utf-8")
+        self.assertIn(f'APP_VERSION = "{version}"', app)
+        self.assertIn(f"$health_data['version'] === '{version}'", frontend)
+        self.assertIn(f"VERSION={version}", release)
+
     def _run_hook(self, name, lbhome, temp_path, folder="loxcode_bridge"):
         env = os.environ.copy()
         env.update({
             "LBHOMEDIR": str(lbhome),
             "LBPCONFIG": str(lbhome / "config" / "plugins"),
             "LBPBIN": str(lbhome / "bin" / "plugins"),
+            "LBPDATA": str(lbhome / "data" / "plugins"),
+            "LOXBERRY_SKIP_RESTART": "1",
         })
         return subprocess.run(
              ["bash", str(ROOT / "loxberry" / name),

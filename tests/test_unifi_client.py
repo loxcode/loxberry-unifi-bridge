@@ -1,10 +1,12 @@
-import sys, pathlib, unittest
+import pathlib
+import sys
+import unittest
 
 BASE_DIR = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE_DIR / "tools"))
 sys.path.insert(0, str(BASE_DIR / "bridge"))
-from controller_mock import ControllerMock
-from unifi_client import UnifiClient
+from controller_mock import ControllerMock  # noqa: E402
+from unifi_client import UnifiClient  # noqa: E402
 
 MAC = "aa:bb:cc:dd:ee:ff"
 
@@ -14,9 +16,11 @@ class ClientTestBase(unittest.TestCase):
         self.mock = ControllerMock()
         port = self.mock.start()
         self.client = UnifiClient(f"http://127.0.0.1:{port}",
-                                  username="bridge", password="pw")
+                                  username="bridge", password="pw",
+                                  device_cache_ttl=0)
 
     def tearDown(self):
+        self.client.close()
         self.mock.stop()
 
 
@@ -34,6 +38,11 @@ class TestSetPoe(ClientTestBase):
     def test_set_poe_unknown_mac_fails(self):
         ok, msg = self.client.set_poe("00:00:00:00:00:00", [1], "on")
         self.assertFalse(ok)
+
+    def test_set_poe_rejects_non_poe_port(self):
+        ok, msg = self.client.set_poe(MAC, [99], "off")
+        self.assertFalse(ok)
+        self.assertIn("Keine PoE-Ports", msg)
 
     def test_auto_relogin_after_session_expiry(self):
         self.mock.state.session_max_requests = 2

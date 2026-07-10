@@ -9,35 +9,49 @@ Ein `switch` ist ein dict {"name": str, "mac": str, "ports": list[int]}.
 `cfg` ist ein dict {bridge_host, bridge_port, api_user, api_pass}.
 """
 import io
+import re
 import zipfile
+from urllib.parse import quote
 from xml.sax.saxutils import quoteattr
 
 _XML_HEAD = '<?xml version="1.0" encoding="utf-8"?>\n'
-_GEN_NOTE = ("<!-- loxcode bridge v1.0 - generiert von "
+_GEN_NOTE = ("<!-- UniFi Bridge v1.0.19 - generiert von "
              "tools/make_templates.py -->\n")
 
 
 def base_address(cfg: dict) -> str:
     auth = ""
     if cfg.get("api_user") and cfg.get("api_pass"):
-        auth = f"{cfg['api_user']}:{cfg['api_pass']}@"
+        user = quote(str(cfg["api_user"]), safe="")
+        password = quote(str(cfg["api_pass"]), safe="")
+        auth = f"{user}:{password}@"
     return f"http://{auth}{cfg['bridge_host']}:{cfg['bridge_port']}"
+
+
+def safe_filename_part(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value or "")).strip("._")
+    return cleaned[:64] or "Switch"
+
+
+def switch_query_name(value: str) -> str:
+    return quote(str(value or ""), safe="")
 
 
 def build_vo_commands(switches: list) -> list:
     cmds = []
     for sw in switches:
+        query_name = switch_query_name(sw["name"])
         for p in sw["ports"]:
             cmds.append({
                 "title": f"{sw['name']} Port {p} PoE",
-                "cmd_on": f"/poe/set?switch={sw['name']}&ports={p}&state=on",
-                "cmd_off": f"/poe/set?switch={sw['name']}&ports={p}&state=off",
+                "cmd_on": f"/poe/set?switch={query_name}&ports={p}&state=on",
+                "cmd_off": f"/poe/set?switch={query_name}&ports={p}&state=off",
             })
         allp = ",".join(str(p) for p in sw["ports"])
         cmds.append({
             "title": f"{sw['name']} alle Ports PoE",
-            "cmd_on": f"/poe/set?switch={sw['name']}&ports={allp}&state=on",
-            "cmd_off": f"/poe/set?switch={sw['name']}&ports={allp}&state=off",
+            "cmd_on": f"/poe/set?switch={query_name}&ports={allp}&state=on",
+            "cmd_off": f"/poe/set?switch={query_name}&ports={allp}&state=off",
         })
     return cmds
 
@@ -67,26 +81,28 @@ def build_vi_devices(cfg: dict, switches: list) -> list:
     devs = []
     for sw in switches:
         ports = ",".join(str(p) for p in sw["ports"])
+        query_name = switch_query_name(sw["name"])
+        filename_name = safe_filename_part(sw["name"])
         devs.append({
-            "filename": f"VI_{sw['name']}_status.xml",
+            "filename": f"VI_{filename_name}_status.xml",
             "title": f"loxcode bridge {sw['name']} PoE-Status",
-            "url": f"{base}/poe/status.txt?switch={sw['name']}&ports={ports}",
+            "url": f"{base}/poe/status.txt?switch={query_name}&ports={ports}",
             "polling": 30,
             "cmds": [{"title": f"{sw['name']} Port {p} PoE",
                       "check": f"port{p}=\\v"} for p in sw["ports"]],
         })
         devs.append({
-            "filename": f"VI_{sw['name']}_power.xml",
+            "filename": f"VI_{filename_name}_power.xml",
             "title": f"loxcode bridge {sw['name']} PoE-Leistung",
-            "url": f"{base}/poe/power.txt?switch={sw['name']}&ports={ports}",
+            "url": f"{base}/poe/power.txt?switch={query_name}&ports={ports}",
             "polling": 60,
             "cmds": [{"title": f"{sw['name']} Port {p} Watt",
                       "check": f"port{p}=\\v"} for p in sw["ports"]],
         })
         devs.append({
-            "filename": f"VI_{sw['name']}_online.xml",
+            "filename": f"VI_{filename_name}_online.xml",
             "title": f"loxcode bridge {sw['name']} Online",
-            "url": f"{base}/device/status.txt?switch={sw['name']}",
+            "url": f"{base}/device/status.txt?switch={query_name}",
             "polling": 60,
             "cmds": [{"title": f"{sw['name']} Online", "check": "online=\\v"}],
         })
