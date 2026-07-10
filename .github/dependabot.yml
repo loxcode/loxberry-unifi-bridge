@@ -8,8 +8,15 @@ updates:
     directory: /docker
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: python
+        versions:
+          - ">=3.13"
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-
+    groups:
+      github-actions:
+        patterns:
+          - "*"

@@ -15,8 +15,8 @@ jobs:
       matrix:
         python-version: ["3.10", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -37,3 +37,22 @@ jobs:
           bash -n loxberry/bin/restart.sh loxberry/daemon/daemon.sh loxberry/cron/cron.05min
       - name: Build plugin ZIP
         run: python tools/build_loxberry_zip.py
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build Docker image
+        run: docker build -f docker/Dockerfile -t loxcode-bridge:test .
+      - name: Smoke-test container health
+        run: |
+          docker run --rm -d --name loxcode-bridge-test -p 127.0.0.1:15000:5000 loxcode-bridge:test
+          trap 'docker rm -f loxcode-bridge-test >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:15000/health | grep -q '"service":"unifi_bridge"'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs loxcode-bridge-test
+          exit 1
