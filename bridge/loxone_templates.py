@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # loxcode bridge - Copyright (C) 2026 loxcode
 # Lizenz: GNU General Public License v3.0 - siehe LICENSE im Projekt-Root.
-"""Erzeugt die Loxone-Vorlagen (virtueller Ausgang + HTTP-Eingaenge) fuer
+"""Erzeugt die Loxone-Vorlagen (virtueller Ausgang + HTTP-Eingänge) für
 die loxcode bridge. Einzige Quelle - genutzt von der Bridge (/templates.zip)
 und vom CLI-Wrapper tools/make_templates.py.
 
@@ -138,7 +138,7 @@ def render_files(cfg: dict, switches: list) -> dict:
 
 
 def build_zip_bytes(cfg: dict, switches: list) -> bytes:
-    """Alle Vorlagen als ZIP im Speicher (fuer den Webfrontend-Download)."""
+    """Alle Vorlagen als ZIP im Speicher (für den Webfrontend-Download)."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for name, content in render_files(cfg, switches).items():

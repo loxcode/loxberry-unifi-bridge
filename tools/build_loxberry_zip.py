@@ -2,7 +2,7 @@
 """Baut das installierbare LoxBerry-Plugin-ZIP der loxcode bridge.
 
 Kopiert den Bridge-Kern (app.py, unifi_client.py) in die bin/-Struktur
-und zippt das Plugin gemaess LoxBerry-Interface-2.0-Layout.
+und zippt das Plugin gemäß LoxBerry-Interface-2.0-Layout.
 """
 import configparser
 import hashlib

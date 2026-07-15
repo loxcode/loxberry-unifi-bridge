@@ -103,7 +103,7 @@ class UnifiClient:
                 return r
         return r
 
-    # ---------- Geraete ----------
+    # ---------- Geräte ----------
 
     def _clear_device_cache(self):
         with self._lock:
@@ -138,8 +138,8 @@ class UnifiClient:
         return None
 
     def discover_switches(self) -> list:
-        """Alle PoE-faehigen Switches im Controller finden (fuer die
-        Autoerkennung im Webfrontend). Nur Geraete mit mind. einem
+        """Alle PoE-fähigen Switches im Controller finden (für die
+        Autoerkennung im Webfrontend). Nur Geräte mit mind. einem
         PoE-Port (port_table-Eintrag mit poe_mode)."""
         out = []
         for dev in self.get_devices():

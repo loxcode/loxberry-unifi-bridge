@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simuliert die UniFi-Session-API (Login/Cookie/CSRF) fuer Tests.
+"""Simuliert die UniFi-Session-API (Login/Cookie/CSRF) für Tests.
 
 Start als Server: python3 tools/controller_mock.py [port]
 """

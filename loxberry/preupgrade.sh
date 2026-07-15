@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# preupgrade.sh - laeuft vor dem Kopieren der neuen Plugin-Dateien.
+# preupgrade.sh - läuft vor dem Kopieren der neuen Plugin-Dateien.
 # Sichert die bestehende Nutzer-Konfiguration, weil LoxBerry beim Update
 # Plugin-Verzeichnisse neu anlegen kann.
 #
 # Argumente (LoxBerry Plugin-Interface 2.0):
 #   $1 = Temp-Ordnername
-#   $2 = Plugin-Name fuer Skripte
+#   $2 = Plugin-Name für Skripte
 #   $3 = echter Plugin-Installationsordner (FOLDER, evtl. mit Suffix)
 #   $4 = Plugin-Version
 #   $5 = LoxBerry-Home

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# loxcode bridge - UniFi-PoE-Gateway fuer Loxone
+# loxcode bridge - UniFi-PoE-Gateway für Loxone
 # Copyright (C) 2026 loxcode
 # Lizenz: GNU General Public License v3.0 - siehe LICENSE im Projekt-Root.
-# Dieses Programm ist Freie Software ohne jegliche Gewaehrleistung.
-"""loxcode bridge - UniFi-PoE-Gateway fuer Loxone.
+# Dieses Programm ist Freie Software ohne jegliche Gewährleistung.
+"""loxcode bridge - UniFi-PoE-Gateway für Loxone.
 
 HTTP-API kompatibel zur unifi-poe-bridge, plus Loxone-freundliche
 .txt-Endpoints. Konfiguration via Env oder BRIDGE_CONFIG-JSON.
@@ -72,7 +72,7 @@ def load_settings() -> dict:
                                if isinstance(file_cfg[k], dict)
                                else str(file_cfg[k]))
         # Bestehende Installationen nutzten bisher immer verify=False. Nur neue
-        # Standard-Configs aktivieren die Zertifikatspruefung automatisch.
+        # Standard-Configs aktivieren die Zertifikatsprüfung automatisch.
         if "UNIFI_TLS_VERIFY" not in file_cfg:
             settings["UNIFI_TLS_VERIFY"] = "false"
     return settings
@@ -89,7 +89,7 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
             if not auth_configured:
                 return jsonify({
                     "ok": False,
-                    "error": "API-Zugangsdaten muessen zuerst konfiguriert werden",
+                    "error": "API-Zugangsdaten müssen zuerst konfiguriert werden",
                 }), 503
             auth = request.authorization
             if (not auth
@@ -141,14 +141,14 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
     @app.route("/selftest")
     @require_auth
     def selftest():
-        # Read-only-Diagnose: prueft die Kette Bridge->UDM, ohne Zugangsdaten
+        # Read-only-Diagnose: prüft die Kette Bridge->UDM, ohne Zugangsdaten
         # oder MAC-Adressen preiszugeben.
         try:
             devices = client.get_devices()
         except Exception as e:  # noqa: BLE001 - Diagnose soll nie crashen
             return jsonify({"unifi_reachable": False, "login_ok": False,
                             "error": type(e).__name__,
-                            "hint": "UNIFI_HOST/Netzwerk pruefen"}), 200
+                            "hint": "UNIFI_HOST/Netzwerk prüfen"}), 200
         login_ok = bool(devices)
         found_macs = {d.get("mac", "").lower() for d in devices}
         matched, missing = [], []
@@ -162,14 +162,14 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
             "switches_found": matched,
             "switches_missing": missing,
             "hint": ("alles ok" if login_ok and not missing
-                     else "keine Geraete - Login/Host pruefen" if not login_ok
-                     else "einige Switches nicht gefunden - MAC/Adoption pruefen"),
+                     else "keine Geräte - Login/Host prüfen" if not login_ok
+                     else "einige Switches nicht gefunden - MAC/Adoption prüfen"),
         }), 200
 
     @app.route("/devices")
     @require_auth
     def devices():
-        # Autoerkennung: alle PoE-Switches im Controller (fuers Webfrontend).
+        # Autoerkennung: alle PoE-Switches im Controller (fürs Webfrontend).
         try:
             found = client.discover_switches()
         except Exception as e:  # noqa: BLE001
@@ -179,12 +179,12 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
     @app.route("/templates.zip")
     @require_auth
     def templates_zip():
-        # Loxone-Vorlagen fuer die konfigurierten Switches als ZIP.
+        # Loxone-Vorlagen für die konfigurierten Switches als ZIP.
         # Ports werden per Discovery ermittelt; Host aus ?host= (Default:
-        # der Host, ueber den der Aufruf kam).
+        # der Host, über den der Aufruf kam).
         host = request.args.get("host") or request.host.split(":")[0]
         if not valid_bridge_host(host):
-            return jsonify({"ok": False, "error": "ungueltiger Bridge-Host"}), 400
+            return jsonify({"ok": False, "error": "ungültiger Bridge-Host"}), 400
         try:
             found = {s["mac"]: s for s in client.discover_switches()}
         except Exception:  # noqa: BLE001
@@ -222,7 +222,7 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
         ports = parse_ports()
         if not ports:
             return jsonify({"ok": False,
-                            "error": "keine/ungueltige ports"}), 400
+                            "error": "keine/ungültige ports"}), 400
         state = (request.args.get("state") or "").lower()
         if state not in ("on", "off"):
             return jsonify({"ok": False,
@@ -237,7 +237,7 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
         ports = parse_ports()
         if not ports:
             return None, (jsonify({"ok": False,
-                                   "error": "keine/ungueltige ports"}), 400)
+                                   "error": "keine/ungültige ports"}), 400)
         data = client.poe_status(mac, ports)
         if data is None:
             return None, (jsonify({"ok": False,
@@ -281,7 +281,7 @@ def create_app(client, switches, api_user="", api_pass="", bridge_port=5000):
         ports = parse_ports()
         if not ports:
             return None, (jsonify({"ok": False,
-                                   "error": "keine/ungueltige ports"}), 400)
+                                   "error": "keine/ungültige ports"}), 400)
         data = client.poe_power(mac, ports)
         if data is None:
             return None, (jsonify({"ok": False,

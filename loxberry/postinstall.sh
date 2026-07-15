@@ -1,11 +1,11 @@
 #!/bin/bash
-# postinstall.sh - laeuft nach dem Kopieren der Plugin-Dateien (Install UND Update).
+# postinstall.sh - läuft nach dem Kopieren der Plugin-Dateien (Install UND Update).
 # Legt die Standard-Konfiguration NUR an, wenn noch keine existiert, damit ein
-# Update die vom Nutzer gespeicherte config.json niemals ueberschreibt.
+# Update die vom Nutzer gespeicherte config.json niemals überschreibt.
 #
 #
 # Argumente (LoxBerry Plugin-Interface 2.0):
-#   $2 = Plugin-Name fuer Skripte
+#   $2 = Plugin-Name für Skripte
 #   $3 = echter Plugin-Installationsordner (FOLDER, evtl. mit Suffix)
 PSHNAME="${2:-loxcode_bridge}"
 PDIR="${3:-$PSHNAME}"

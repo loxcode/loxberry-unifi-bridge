@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# postupgrade.sh - laeuft nach postinstall.sh als letzter Update-Schritt.
+# postupgrade.sh - läuft nach postinstall.sh als letzter Update-Schritt.
 # Stellt die in preupgrade.sh gesicherte Nutzer-Konfiguration wieder her.
 PTEMPDIR="${1:-}"
 PSHNAME="${2:-loxcode_bridge}"
@@ -58,7 +58,7 @@ if [ -n "$PTEMPPATH" ] && [ -d "$PTEMPPATH" ]; then
     SAFE_TEMP="$(realpath -m "$PTEMPPATH" 2>/dev/null || true)"
     case "$SAFE_TEMP" in
         /tmp/*|/var/tmp/*) rm -rf "$SAFE_TEMP" ;;
-        *) echo "<INFO> Temp-Ordner wird aus Sicherheitsgruenden nicht geloescht: $PTEMPPATH" ;;
+        *) echo "<INFO> Temp-Ordner wird aus Sicherheitsgründen nicht gelöscht: $PTEMPPATH" ;;
     esac
 fi
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI zum Erzeugen der Loxone-Vorlagen fuer die loxcode bridge.
+"""CLI zum Erzeugen der Loxone-Vorlagen für die loxcode bridge.
 
 Die eigentliche Generierung liegt in bridge/loxone_templates.py (einzige
 Quelle, auch von der Bridge genutzt). Dieses Skript ist der Datei-Wrapper.

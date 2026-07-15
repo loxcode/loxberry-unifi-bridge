@@ -12,7 +12,7 @@ if (!isset($_SESSION['unifi_bridge_csrf'])) {
 }
 $csrf_token = $_SESSION['unifi_bridge_csrf'];
 
-// Echten Plugin-Ordnernamen ermitteln (LoxBerry kann Suffixe anhaengen)
+// Echten Plugin-Ordnernamen ermitteln (LoxBerry kann Suffixe anhängen)
 $plugindir = basename(__DIR__);
 $configdir = isset($lbpconfigdir) ? $lbpconfigdir
     : "/opt/loxberry/config/plugins/" . $plugindir;
@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'download') {
     }
     $err = json_decode((string)$zip, true);
     $msg = 'Vorlagen konnten nicht erzeugt werden'
-         . (is_array($err) && isset($err['error']) ? ': ' . $err['error'] : ' (Bridge/Verbindung pruefen).');
+         . (is_array($err) && isset($err['error']) ? ': ' . $err['error'] : ' (Bridge/Verbindung prüfen).');
     $msg_ok = false;
 }
 
@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
         if ($n === '' && $m === '') { continue; }
         if ($n === '' || strlen($n) > 64 || preg_match('/[\x00-\x1F\x7F]/', $n)
                 || !preg_match('/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/', $m)) {
-            $msg = "Zeile " . ($i + 1) . ": Name fehlt oder MAC ungueltig "
+            $msg = "Zeile " . ($i + 1) . ": Name fehlt oder MAC ungültig "
                  . "(Format aa:bb:cc:dd:ee:ff) - nicht gespeichert.";
             $msg_ok = false;
             break;
@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'discover') {
         }
     } else {
         $msg = 'Erkennung fehlgeschlagen - zuerst UniFi-Zugang speichern und '
-             . 'pruefen (Bridge muss laufen).';
+             . 'prüfen (Bridge muss laufen).';
         $msg_ok = false;
     }
 }

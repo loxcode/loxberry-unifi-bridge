@@ -1,7 +1,7 @@
-# UniFi Bridge — UniFi-PoE-Gateway für Loxone
+# UniFi Bridge: UniFi-PoE-Gateway für Loxone
 
 Schaltet PoE-Ports **dauerhaft** an/aus und liefert **Status-Feedback**
-(PoE-Zustand, Watt je Port, Gerät online) an Loxone — die beiden Dinge,
+(PoE-Zustand, Watt je Port, Gerät online) an Loxone: die beiden Dinge,
 die ohne Gateway technisch nicht gehen (Session-API + Header-Pflicht,
 siehe `../unifi/RECHERCHE.md`).
 
@@ -21,7 +21,7 @@ Beide nutzen denselben Kern; Konfiguration überall gleich benannt.
 ```
 cd loxcode-bridge
 cp docker/docker-compose.example.yml docker/docker-compose.yml
-# docker-compose.yml anpassen (UDM-IP, UniFi-User, Switch-MACs, Passwoerter!)
+# docker-compose.yml anpassen (UDM-IP, UniFi-User, Switch-MACs, Passwörter!)
 docker compose -f docker/docker-compose.yml up -d --build
 curl http://<host>:5000/health   # -> {"status": "ok"}
 ```
@@ -34,11 +34,11 @@ python3 tools/build_loxberry_zip.py     # erzeugt dist/loxcode_bridge-<version>.
 ZIP über die LoxBerry-Pluginverwaltung installieren, dann im Plugin
 „UniFi Bridge" die UniFi-Zugangsdaten eintragen und speichern. Danach:
 
-- **Switches suchen** — Button füllt die Switch-Liste automatisch (Name +
+- **Switches suchen**: Button füllt die Switch-Liste automatisch (Name +
   MAC, mit Modell, PoE-Ports und aktueller Leistung). Kein MAC-Abtippen.
-- **Loxone-Vorlagen herunterladen** — Button erzeugt aus den gespeicherten
+- **Loxone-Vorlagen herunterladen**: Button erzeugt aus den gespeicherten
   Switches ein fertiges ZIP für Loxone Config (Ports automatisch erkannt).
-- **Hilfe & Anleitung** — erklärt Zweck, Voraussetzungen, Einrichtung,
+- **Hilfe & Anleitung**: erklärt Zweck, Voraussetzungen, Einrichtung,
   Loxone-Anbindung und typische Fehler direkt im Plugin.
 - Ein **Watchdog** (Cronjob, alle 5 Min) startet die Bridge bei Absturz neu.
 - Der **Verbindungstest** oben zeigt sofort, ob die UDM erreichbar ist.
@@ -74,9 +74,9 @@ python3 tools/make_templates.py --bridge-host <BRIDGE-IP> \
     --switch "Rack=aa:bb:cc:dd:ee:ff=1,2,8"
 ```
 Erzeugt in `templates/`:
-- `VO_loxcodeBridge.xml` — virtueller Ausgang: je Port ein digitaler
-  Aktor (EIN = PoE an, AUS = PoE aus) + „alle Ports" je Switch
-- `VI_<Name>_status.xml` / `_power.xml` / `_online.xml` — virtuelle
+- `VO_loxcodeBridge.xml`: virtueller Ausgang, je Port ein digitaler
+  Aktor (EIN = PoE an, AUS = PoE aus) plus „alle Ports" je Switch
+- `VI_<Name>_status.xml` / `_power.xml` / `_online.xml`: virtuelle
   HTTP-Eingänge (Polling 30/60 s) mit fertiger Befehlserkennung
 
 In Loxone Config importieren, fertig. PoE-Schalter und Status-Sensoren
@@ -85,7 +85,7 @@ verhalten sich wie normale Loxone-Objekte.
 ## Testen ohne UniFi
 
 `python3 tools/controller_mock.py` startet einen UniFi-Simulator
-(User `bridge`/`pw`, 1 Switch) — `UNIFI_HOST` darauf zeigen lassen und
+(User `bridge`/`pw`, 1 Switch). `UNIFI_HOST` darauf zeigen lassen und
 die komplette Kette lokal durchspielen.
 
 ## Sicherheit
@@ -96,7 +96,7 @@ die komplette Kette lokal durchspielen.
   selbstsignierte Zertifikate kann eine eigene CA-Datei angegeben werden.
   `UNIFI_TLS_VERIFY=false` ist nur als ausdrücklich unsichere Übergangslösung
   für rein lokale Netze vorgesehen.
-- Keine echten Zugangsdaten in Git — `docker-compose.yml` (ohne
+- Keine echten Zugangsdaten in Git: `docker-compose.yml` (ohne
   `.example`) und lokale Configs sind bewusst nicht Teil des Repos.
 
 ## Hardware-Testpunkte
@@ -108,10 +108,10 @@ die komplette Kette lokal durchspielen.
 
 ## Lizenz
 
-GNU General Public License v3.0 — siehe [LICENSE](../LICENSE). Wer eine
+GNU General Public License v3.0, siehe [LICENSE](../LICENSE). Wer eine
 veränderte Version weitergibt, muss den Quellcode offenlegen.
 Bereitgestellt ohne Gewährleistung.
 
 ## Credits
 
-**loxcode** — basiert auf einer produktiv erprobten Eigenentwicklung.
+**loxcode** basiert auf einer produktiv erprobten Eigenentwicklung.

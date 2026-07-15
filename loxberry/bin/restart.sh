@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bridge kontrolliert ueber Gunicorn neu starten.
+# Bridge kontrolliert über Gunicorn neu starten.
 set -eu
 
 BIN="$(cd "$(dirname "$0")" && pwd)"
@@ -45,7 +45,7 @@ stop_known_processes() {
         old_pid="$(cat "$PID" 2>/dev/null || true)"
         if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
             if ! stop_bridge_process "$old_pid"; then
-                echo "PID-Datei gehoert nicht zur UniFi Bridge oder der Prozess darf nicht beendet werden." >&2
+                echo "PID-Datei gehört nicht zur UniFi Bridge oder der Prozess darf nicht beendet werden." >&2
             fi
         fi
         rm -f "$PID"
@@ -62,8 +62,8 @@ stop_known_processes() {
     done
 }
 
-# Cron und Upgrade-Hooks koennen als root laufen. Alte Instanzen duerfen dann
-# beendet werden, der neue Netzwerkdienst laeuft danach immer als loxberry.
+# Cron und Upgrade-Hooks können als root laufen. Alte Instanzen dürfen dann
+# beendet werden, der neue Netzwerkdienst läuft danach immer als loxberry.
 if [ "$(id -u)" -eq 0 ] && id loxberry >/dev/null 2>&1; then
     stop_known_processes
     chown -R loxberry:loxberry "$DATA" "$(dirname "$LOG")" 2>/dev/null || true
@@ -75,11 +75,11 @@ if command -v flock >/dev/null 2>&1; then
     if ! flock -w 15 9; then
         # 1.0.18 vererbte den Lock versehentlich an Gunicorn. Nach Ablauf der
         # regulaeren Wartezeit beenden wir nur eigene Bridge-Prozesse und
-        # uebernehmen den dadurch freigegebenen Lock.
-        echo "Festgehaltenen Restart-Lock einer alten Bridge-Instanz loesen."
+        # übernehmen den dadurch freigegebenen Lock.
+        echo "Festgehaltenen Restart-Lock einer alten Bridge-Instanz lösen."
         stop_known_processes
         flock -w 10 9 || {
-            echo "Ein anderer Neustart der UniFi Bridge laeuft bereits." >&2
+            echo "Ein anderer Neustart der UniFi Bridge läuft bereits." >&2
             exit 1
         }
     fi
@@ -99,7 +99,7 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     cfg = json.load(handle)
 port = int(cfg.get("BRIDGE_PORT", 5000))
 if not 1 <= port <= 65535:
-    raise SystemExit("ungueltiger Port")
+    raise SystemExit("ungültiger Port")
 bind = str(cfg.get("BRIDGE_BIND", "0.0.0.0"))
 if bind not in ("0.0.0.0", "127.0.0.1"):
     raise SystemExit("Bind-Adresse muss 0.0.0.0 oder 127.0.0.1 sein")
