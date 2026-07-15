@@ -31,7 +31,7 @@ DEFAULTS = {"UNIFI_HOST": "https://192.168.1.1", "UNIFI_SITE": "default",
             "UNIFI_TLS_VERIFY": "true", "UNIFI_CA_BUNDLE": "",
             "DEVICE_CACHE_TTL": "2.0"}
 
-APP_VERSION = "1.0.19"
+APP_VERSION = "1.0.20"
 
 
 def as_bool(value) -> bool:

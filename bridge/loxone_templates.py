@@ -15,7 +15,7 @@ from urllib.parse import quote
 from xml.sax.saxutils import quoteattr
 
 _XML_HEAD = '<?xml version="1.0" encoding="utf-8"?>\n'
-_GEN_NOTE = ("<!-- UniFi Bridge v1.0.19 - generiert von "
+_GEN_NOTE = ("<!-- UniFi Bridge v1.0.20 - generiert von "
              "tools/make_templates.py -->\n")
 
 

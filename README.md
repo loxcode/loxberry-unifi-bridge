@@ -5,7 +5,7 @@ Schaltet PoE-Ports **dauerhaft** an/aus und liefert **Status-Feedback**
 die ohne Gateway technisch nicht gehen (Session-API + Header-Pflicht,
 siehe `../unifi/RECHERCHE.md`).
 
-**Version 1.0.19 · Docker + LoxBerry · LOXCODE**
+**Version 1.0.20 · Docker + LoxBerry · LOXCODE**
 
 ## Varianten
 

@@ -226,7 +226,7 @@ $running = (is_array($health_data)
     && isset($health_data['status'], $health_data['service'], $health_data['version'])
     && $health_data['status'] === 'ok'
     && $health_data['service'] === 'unifi_bridge'
-    && $health_data['version'] === '1.0.19');
+    && $health_data['version'] === '1.0.20');
 $health_mismatch = ($health !== false && !$running);
 $selftest = null;
 if ($running && $plugincfg['API_USER'] !== '' && $plugincfg['API_PASS'] !== '') {
